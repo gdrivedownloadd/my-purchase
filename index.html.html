@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Purchase Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="bg-emerald-700 text-white shadow-md p-4 sticky top-0 z-50">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-seedling"></i> Krishi Purchase Manager
+            </h1>
+            <span class="text-xs bg-emerald-600 px-2 py-1 rounded-full">v1.1</span>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-md w-full mx-auto p-4 flex-grow mb-16">
+        
+        <!-- Input Form Card -->
+        <section class="bg-white rounded-2xl shadow-sm p-5 mb-6 border border-slate-200">
+            <h2 class="text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-cart-plus text-emerald-600"></i> New Entry
+            </h2>
+            
+            <form id="purchaseForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Farmer Name <span class="text-slate-400 text-xs">(Optional)</span></label>
+                    <input type="text" id="farmerName" placeholder="e.g. Ramesh Kumar (Leave blank if none)" 
+                        class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Total Weight *</label>
+                        <input type="number" step="any" id="weight" required placeholder="0.00" 
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Rate / Unit *</label>
+                        <input type="number" step="any" id="rate" required placeholder="0.00" 
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                    </div>
+                </div>
+
+                <!-- Live Calculated Amount Preview -->
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center text-sm">
+                    <span class="text-slate-500">Calculated Amount:</span>
+                    <span id="previewAmount" class="font-bold text-slate-700">₹ 0.00</span>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl transition duration-200 shadow-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Add Entry
+                </button>
+            </form>
+        </section>
+
+        <!-- Summary Dashboard Card -->
+        <section class="bg-gradient-to-br from-emerald-800 to-emerald-900 text-white rounded-2xl shadow-md p-5 mb-6">
+            <h2 class="text-sm font-medium text-emerald-200 uppercase tracking-wider mb-3">Session Summary</h2>
+            <div class="grid grid-cols-3 gap-2 text-center divider">
+                <div class="bg-white/10 p-2.5 rounded-xl backdrop-blur-sm">
+                    <span class="block text-xs text-emerald-200">Total Wt</span>
+                    <span id="sumWeight" class="text-sm font-bold">0.00</span>
+                </div>
+                <div class="bg-white/10 p-2.5 rounded-xl backdrop-blur-sm">
+                    <span class="block text-xs text-emerald-200">Total Amt</span>
+                    <span id="sumAmount" class="text-sm font-bold">₹0</span>
+                </div>
+                <div class="bg-white/10 p-2.5 rounded-xl backdrop-blur-sm border border-amber-400/30">
+                    <span class="block text-xs text-amber-300 font-medium">Avg Price</span>
+                    <span id="avgPrice" class="text-sm font-bold text-amber-300">₹0.00</span>
+                </div>
+            </div>
+            <p class="text-[11px] text-emerald-200/80 text-center mt-3 italic">* Average Price = Total Amount / Total Weight</p>
+        </section>
+
+        <!-- Actions / Export Toolbar -->
+        <section class="grid grid-cols-2 gap-3 mb-6">
+            <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm transition">
+                <i class="fa-solid fa-file-excel"></i> Export Excel
+            </button>
+            <button onclick="exportToPDF()" class="bg-rose-600 hover:bg-rose-700 text-white py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm transition">
+                <i class="fa-solid fa-file-pdf"></i> Export PDF
+            </button>
+        </section>
+
+        <!-- Records List -->
+        <section class="bg-white rounded-2xl shadow-sm p-4 border border-slate-200">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-semibold text-slate-700 text-sm">Recent Purchases</h3>
+                <button onclick="clearAll()" class="text-xs text-rose-500 hover:underline">Clear All</button>
+            </div>
+            <div id="entriesList" class="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                <p class="text-xs text-slate-400 text-center py-4">No entries recorded yet.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let entries = JSON.parse(localStorage.getItem('farmer_purchases')) || [];
+
+        const form = document.getElementById('purchaseForm');
+        const weightInput = document.getElementById('weight');
+        const rateInput = document.getElementById('rate');
+        const previewAmount = document.getElementById('previewAmount');
+
+        // Live amount preview calculation
+        function updatePreview() {
+            const w = parseFloat(weightInput.value) || 0;
+            const r = parseFloat(rateInput.value) || 0;
+            previewAmount.innerText = `₹ ${(w * r).toFixed(2)}`;
+        }
+
+        weightInput.addEventListener('input', updatePreview);
+        rateInput.addEventListener('input', updatePreview);
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            let nameInput = document.getElementById('farmerName').value.trim();
+            const farmerName = nameInput === "" ? "Walk-in Farmer" : nameInput;
+            const weight = parseFloat(weightInput.value);
+            const rate = parseFloat(rateInput.value);
+
+            if (!weight || !rate) return;
+
+            const amount = weight * rate;
+
+            const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(),
+                farmerName,
+                weight,
+                rate,
+                amount
+            };
+
+            entries.unshift(entry);
+            saveAndRender();
+            form.reset();
+            previewAmount.innerText = "₹ 0.00";
+        });
+
+        function deleteEntry(id) {
+            entries = entries.filter(item => item.id !== id);
+            saveAndRender();
+        }
+
+        function clearAll() {
+            if (confirm("Are you sure you want to clear all records?")) {
+                entries = [];
+                saveAndRender();
+            }
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('farmer_purchases', JSON.stringify(entries));
+            render();
+        }
+
+        function render() {
+            const listEl = document.getElementById('entriesList');
+            const sumWeightEl = document.getElementById('sumWeight');
+            const sumAmountEl = document.getElementById('sumAmount');
+            const avgPriceEl = document.getElementById('avgPrice');
+
+            if (entries.length === 0) {
+                listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">No entries recorded yet.</p>`;
+                sumWeightEl.innerText = "0.00";
+                sumAmountEl.innerText = "₹0";
+                avgPriceEl.innerText = "₹0.00";
+                return;
+            }
+
+            let totalW = 0;
+            let totalA = 0;
+            let html = '';
+
+            entries.forEach(item => {
+                totalW += item.weight;
+                totalA += item.amount;
+                html += `
+                    <div class="bg-slate-50 border border-slate-100 p-2.5 rounded-xl flex justify-between items-center text-xs">
+                        <div>
+                            <p class="font-bold text-slate-700">${item.farmerName}</p>
+                            <p class="text-slate-500">${item.weight} units @ ₹${item.rate} = <span class="font-semibold text-slate-700">₹${item.amount.toFixed(2)}</span></p>
+                        </div>
+                        <button onclick="deleteEntry(${item.id})" class="text-slate-400 hover:text-rose-500 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+            });
+
+            const avgP = totalW > 0 ? (totalA / totalW) : 0;
+
+            sumWeightEl.innerText = totalW.toFixed(2);
+            sumAmountEl.innerText = `₹${totalA.toFixed(2)}`;
+            avgPriceEl.innerText = `₹${avgP.toFixed(2)}`;
+            listEl.innerHTML = html;
+        }
+
+        function exportToExcel() {
+            if (entries.length === 0) {
+                alert("No data to export!");
+                return;
+            }
+            let csv = "Date,Farmer Name,Weight,Rate,Amount\n";
+            entries.forEach(e => {
+                csv += `${e.date},"${e.farmerName}",${e.weight},${e.rate},${e.amount.toFixed(2)}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Farmer_Purchases_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+        }
+
+        function exportToPDF() {
+            if (entries.length === 0) {
+                alert("No data to export!");
+                return;
+            }
+            window.print();
+        }
+
+        render();
+    </script>
+</body>
+</html>
